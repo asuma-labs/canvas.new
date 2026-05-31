@@ -1,0 +1,14 @@
+{
+  "name": "canvas-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node api/generate.js"
+  },
+  "dependencies": {
+    "fastify": "^4.25.2",
+    "@napi-rs/canvas": "^1.0.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "uuid": "^9.0.1"
+  }
+}

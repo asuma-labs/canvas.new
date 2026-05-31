@@ -163,140 +163,60 @@ async function generateQuoteCanvas(quoteText, author = 'Someone') {
   return canvas.encode('jpeg');
 }
 
-export default async function quoteRoute(fastify, options) {
-  fastify.route({
-    method: 'GET',
-    url: '/quote',
-    handler: async (req, reply) => {
-      try {
-        const { quote, author = 'Someone' } = req.query;
+export default async function (fastify, opts) {
+  fastify.get('/quote', async (request, reply) => {
+    try {
+      const { quote, author = 'Someone' } = request.query;
+      if (!quote) return reply.status(400).send({ success: false, message: 'Missing quote' });
+      
+      const buffer = await generateQuoteCanvas(quote, author);
+      const filename = `quote-${Date.now()}-${uuidv4()}.jpg`;
+      const storagePath = `public/${filename}`;
 
-        if (!quote || quote.trim().length === 0) {
-          return reply.status(400).send({
-            success: false,
-            message: 'Quote parameter is required (example: ?quote=Hello%20world&author=John)'
-          });
-        }
+      const { error: uploadError } = await supabase.storage
+        .from('canvas-output')
+        .upload(storagePath, buffer, { contentType: 'image/jpeg', cacheControl: '3600' });
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-        const buffer = await generateQuoteCanvas(quote, author);
-        const filename = `quote-${Date.now()}-${uuidv4()}.jpg`;
+      const { data: publicUrlData } = supabase.storage.from('canvas-output').getPublicUrl(storagePath);
+      const { data: meta, error: dbError } = await supabase
+        .from('canvas_metadata')
+        .insert({ filename, storage_path: storagePath, public_url: publicUrlData.publicUrl })
+        .select()
+        .single();
+      if (dbError) throw new Error(`Failed to save metadata: ${dbError.message}`);
 
-        const storagePath = `public/${filename}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('canvas-output')
-          .upload(storagePath, buffer, {
-            contentType: 'image/jpeg',
-            cacheControl: '3600',
-          });
-
-        if (uploadError) {
-          throw new Error(`Upload failed: ${uploadError.message}`);
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('canvas-output')
-          .getPublicUrl(storagePath);
-
-        const { data: meta, error: dbError } = await supabase
-          .from('canvas_metadata')
-          .insert({
-            filename: filename,
-            storage_path: storagePath,
-            public_url: publicUrlData.publicUrl,
-          })
-          .select()
-          .single();
-
-        if (dbError) {
-          throw new Error(`Failed to save metadata: ${dbError.message}`);
-        }
-
-        return reply.status(200).send({
-          success: true,
-          message: 'Quote image generated successfully',
-          data: {
-            id: meta.id,
-            filename: meta.filename,
-            url: meta.public_url,
-          }
-        });
-
-      } catch (error) {
-        console.error('Quote generation error:', error);
-        return reply.status(500).send({
-          success: false,
-          message: error.message || 'Internal server error'
-        });
-      }
+      reply.send({ success: true, message: 'Quote image generated successfully', data: { id: meta.id, filename: meta.filename, url: meta.public_url } });
+    } catch (error) {
+      reply.status(500).send({ success: false, message: error.message });
     }
   });
 
-  fastify.route({
-    method: 'POST',
-    url: '/quote',
-    handler: async (req, reply) => {
-      try {
-        const { quote, author = 'Someone' } = req.body;
+  fastify.post('/quote', async (request, reply) => {
+    try {
+      const { quote, author = 'Someone' } = request.body;
+      if (!quote) return reply.status(400).send({ success: false, message: 'Missing quote' });
+      
+      const buffer = await generateQuoteCanvas(quote, author);
+      const filename = `quote-${Date.now()}-${uuidv4()}.jpg`;
+      const storagePath = `public/${filename}`;
 
-        if (!quote || quote.trim().length === 0) {
-          return reply.status(400).send({
-            success: false,
-            message: 'Quote is required'
-          });
-        }
+      const { error: uploadError } = await supabase.storage
+        .from('canvas-output')
+        .upload(storagePath, buffer, { contentType: 'image/jpeg', cacheControl: '3600' });
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-        const buffer = await generateQuoteCanvas(quote, author);
-        const filename = `quote-${Date.now()}-${uuidv4()}.jpg`;
+      const { data: publicUrlData } = supabase.storage.from('canvas-output').getPublicUrl(storagePath);
+      const { data: meta, error: dbError } = await supabase
+        .from('canvas_metadata')
+        .insert({ filename, storage_path: storagePath, public_url: publicUrlData.publicUrl })
+        .select()
+        .single();
+      if (dbError) throw new Error(`Failed to save metadata: ${dbError.message}`);
 
-        const storagePath = `public/${filename}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('canvas-output')
-          .upload(storagePath, buffer, {
-            contentType: 'image/jpeg',
-            cacheControl: '3600',
-          });
-
-        if (uploadError) {
-          throw new Error(`Upload failed: ${uploadError.message}`);
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('canvas-output')
-          .getPublicUrl(storagePath);
-
-        const { data: meta, error: dbError } = await supabase
-          .from('canvas_metadata')
-          .insert({
-            filename: filename,
-            storage_path: storagePath,
-            public_url: publicUrlData.publicUrl,
-          })
-          .select()
-          .single();
-
-        if (dbError) {
-          throw new Error(`Failed to save metadata: ${dbError.message}`);
-        }
-
-        return reply.status(200).send({
-          success: true,
-          message: 'Quote image generated successfully',
-          data: {
-            id: meta.id,
-            filename: meta.filename,
-            url: meta.public_url,
-          }
-        });
-
-      } catch (error) {
-        console.error('Quote generation error:', error);
-        return reply.status(500).send({
-          success: false,
-          message: error.message || 'Internal server error'
-        });
-      }
+      reply.send({ success: true, message: 'Quote image generated successfully', data: { id: meta.id, filename: meta.filename, url: meta.public_url } });
+    } catch (error) {
+      reply.status(500).send({ success: false, message: error.message });
     }
   });
 }

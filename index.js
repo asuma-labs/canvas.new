@@ -1,4 +1,7 @@
 import Fastify from 'fastify';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import autoLoad from '@fastify/autoload';
 import rateLimit from '@fastify/rate-limit';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -6,9 +9,11 @@ import compress from '@fastify/compress';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import dotenv from 'dotenv';
-import generateRoute from './api/generate.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const server = Fastify({
   logger: process.env.NODE_ENV !== 'production',
@@ -55,10 +60,18 @@ async function buildServer() {
     status: 'ok',
     message: 'Canvas API is running 🚀',
     docs: '/docs',
-    endpoint: '/api/generate',
+    endpoints: {
+      GET: '/api/health',
+      POST: '/api/generate',
+      POST: '/api/quote',
+    },
   }));
 
-  await server.register(generateRoute, { prefix: '/api' });
+  await server.register(autoLoad, {
+    dir: path.join(__dirname, 'api'),
+    options: { prefix: '/api' },
+    forceESM: true,
+  });
 
   return server;
 }

@@ -8,6 +8,7 @@
   "dependencies": {
     "fastify": "^4.25.2",
     "@napi-rs/canvas": "^1.0.0",
+    "@fastify/rate-limit": "^9.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "uuid": "^9.0.1"
   }

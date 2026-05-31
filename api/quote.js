@@ -163,7 +163,7 @@ async function generateQuoteCanvas(quoteText, author = 'Someone') {
   return canvas.encode('jpeg');
 }
 
-export default async function (fastify, opts) {
+export default async function quoteRoute(fastify, opts) {
   fastify.get('/quote', async (request, reply) => {
     try {
       const { quote, author = 'Someone' } = request.query;
